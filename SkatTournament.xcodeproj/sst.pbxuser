@@ -1,0 +1,67 @@
+// !$*UTF8*$!
+{
+	08FB7793FE84155DC02AAC07 /* Project object */ = {
+		activeBuildConfigurationName = Debug;
+		activeExecutable = 1C3E55BB0C773904000DC7D8 /* SkatTournament */;
+		activeTarget = 8DD76FA90486AB0100D96B5E /* SkatTournament */;
+		breakpointsGroup = 1C3E55D60C773922000DC7D8 /* XCBreakpointsBucket */;
+		codeSenseManager = 1C3E55D50C773922000DC7D8 /* Code sense */;
+		executables = (
+			1C3E55BB0C773904000DC7D8 /* SkatTournament */,
+		);
+		perUserDictionary = {
+			PBXPerProjectTemplateStateSaveDate = 209139972;
+			PBXWorkspaceStateSaveDate = 209139972;
+		};
+		sourceControlManager = 1C3E55D40C773922000DC7D8 /* Source Control */;
+		userBuildSettings = {
+		};
+	};
+	1C3E55BB0C773904000DC7D8 /* SkatTournament */ = {
+		isa = PBXExecutable;
+		activeArgIndex = 2147483647;
+		activeArgIndices = (
+		);
+		argumentStrings = (
+		);
+		autoAttachOnCrash = 1;
+		configStateDict = {
+		};
+		customDataFormattersEnabled = 1;
+		debuggerPlugin = GDBDebugging;
+		disassemblyDisplayState = 0;
+		enableDebugStr = 1;
+		environmentEntries = (
+		);
+		executableSystemSymbolLevel = 0;
+		executableUserSymbolLevel = 0;
+		libgmallocEnabled = 0;
+		name = SkatTournament;
+		sourceDirectories = (
+		);
+	};
+	1C3E55D40C773922000DC7D8 /* Source Control */ = {
+		isa = PBXSourceControlManager;
+		fallbackIsa = XCSourceControlManager;
+		isSCMEnabled = 0;
+		scmConfiguration = {
+		};
+		scmType = "";
+	};
+	1C3E55D50C773922000DC7D8 /* Code sense */ = {
+		isa = PBXCodeSenseManager;
+		indexTemplatePath = "";
+	};
+	1C3E55D60C773922000DC7D8 /* XCBreakpointsBucket */ = {
+		isa = XCBreakpointsBucket;
+		name = SkatTournament;
+		objects = (
+		);
+	};
+	8DD76FA90486AB0100D96B5E /* SkatTournament */ = {
+		activeExec = 0;
+		executables = (
+			1C3E55BB0C773904000DC7D8 /* SkatTournament */,
+		);
+	};
+}
