@@ -2,7 +2,7 @@
 //  SkatTournament
 //
 //  Created by Simon Stiefel on 15.06.07.
-//  Copyright 2006 stiefels.net. All rights reserved.
+//  Copyright 2007 stiefels.net. All rights reserved.
 //
 //  $Id$
 //
@@ -10,9 +10,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define N_PLAYERS  8
+#define N_PLAYERS  12
 #define N_TABLES   4
-#define N_PPT      2
+#define N_PPT      3
 
 typedef char* comb;
 
@@ -64,15 +64,16 @@ void destroy_combset_tree_element(combset_tree *);
 void init_positions(int**);
 void destroy_positions(int*);
 
-// actual 
+// search functions
 int find_next_round_combset(combset *round, combset *worker, int *positions, int depth);
-int find_all_round_combsets(combset *worker, combset_tree *parent);
-int find_all_subcombsets(combset_tree *parent, combset *allcombs);
+int find_all_round_combsets(combset *worker, combset_tree *parent, int pos_limit);
+int find_all_subcombsets(combset_tree *parent, combset *allcombs, unsigned int *num_results);
 
 int autostop = 0;
 
 int main (int argc, const char * argv[]) {    
     int selected_startpos;
+    unsigned int num_results = 0;
     
     combset *allcombs = NULL; // all combinations
     combset_tree *resulttree_root; // result tree
@@ -97,44 +98,28 @@ int main (int argc, const char * argv[]) {
     build_all_comb(allcombs);
     
     // fill first level
-    int num_first_level_combsets = find_all_round_combsets(allcombs, resulttree_root);
-    
-    // check if selected startposition is in range
-    if (selected_startpos >= num_first_level_combsets) {
-        printf("selected_startpos is out of range...\n");
-        return 1;
-    }
-    
-    // delete non-selected combs
-    combset_tree *runner = resulttree_root->childs;
-    int counter = 0;
-    
-    while (runner != NULL) {
-        if (selected_startpos != counter) {
-            destroy_combset_tree_element(runner);
-        }
-        counter++;
-        runner = runner->next_neighbour;
-    }
+    find_all_round_combsets(allcombs, resulttree_root, selected_startpos);
     
     // print selected startposition
     printf("selected start combination:\n");
     print_combset(resulttree_root->childs->round);
     
-    find_all_subcombsets(resulttree_root, allcombs);
+    find_all_subcombsets(resulttree_root, allcombs, &num_results);
+    
+    printf("results total: %u\n", num_results);
     
     return 0;
 }
 
-int find_all_subcombsets(combset_tree *parent, combset *allcombs)
+int find_all_subcombsets(combset_tree *parent, combset *allcombs, unsigned int *num_results)
 {
     static int depth = 0;
-    static unsigned int num_results = 0;
+    int count = 0;
+
     depth++;
     
     combset_tree *runner = parent->childs;
     int combcount = combset_count(allcombs);
-    int count = 0;
     
     if (runner == NULL || combcount == 0) {
         depth--;
@@ -153,12 +138,16 @@ int find_all_subcombsets(combset_tree *parent, combset *allcombs)
         // re-initialize if empty
         if (reducedcombs == NULL) { init_combset(&reducedcombs); }
         
-        // find all combsets 
-        find_all_round_combsets(reducedcombs, runner);
-        
-        // use found combsets to find subcombsets
-        if (find_all_subcombsets(runner, reducedcombs) == 0 && count == 0) {
-            num_results++;
+        // find all combsets
+        if (depth == 1) {
+            find_all_round_combsets(reducedcombs, runner, 0);
+        } else {
+            find_all_round_combsets(reducedcombs, runner, -1);
+        }
+            
+        // use found combsets to find subcombsets (recursive)
+        if (find_all_subcombsets(runner, reducedcombs, num_results) == 0 && count == 0) {
+            (*num_results)++;
             
             if (depth >= autostop) {
                 printf("\nNew possible tournament (%d):\n", depth);
@@ -175,7 +164,7 @@ int find_all_subcombsets(combset_tree *parent, combset *allcombs)
                 
             } else {
                 printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
-                printf("%d", num_results);
+                printf("%d", *num_results);
             }
         }
         
@@ -196,7 +185,7 @@ int find_all_subcombsets(combset_tree *parent, combset *allcombs)
     return count;
 }
 
-int find_all_round_combsets(combset *worker, combset_tree *parent)
+int find_all_round_combsets(combset *worker, combset_tree *parent, int pos_limit)
 {
     int *positions;
     combset_tree *temp;
@@ -208,9 +197,21 @@ int find_all_round_combsets(combset *worker, combset_tree *parent)
     
     // find next combset and append to tree
     while (find_next_round_combset(temp->round, worker, positions, 0) == 1) {
-        append_combset_tree_child(parent, temp);
+        // append only if position limitation is reached or deactivated
+        if (pos_limit == -1 || counter == pos_limit) {
+            append_combset_tree_child(parent, temp);
+        } else {
+            destroy_combset_tree_element(temp);
+        }
+        
+        // re-initialize temp
         init_combset_tree(&temp);
+        
         counter++;
+    }
+    
+    if (pos_limit >= counter) {
+        printf("pos_limit out of range\n");
     }
     
     // clean memory
@@ -298,7 +299,7 @@ int compare_comb(comb c1, comb c2)
     return count;
 }
 
-int player_in_comb(comb c, int p)
+int player_in_comb(comb c, char p)
 {
     int i;
     for (i = 0; i < N_PPT; i++) {
