@@ -10,10 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define N_PLAYERS  12
-#define N_TABLES   4
-#define N_PPT      3
-
 typedef char* comb;
 
 typedef struct combset {
@@ -36,7 +32,7 @@ void init_comb(comb*);
 void destroy_comb(comb);
 void copy_comb(comb, comb*);
 int compare_comb(comb, comb);
-int player_in_comb(comb, int);
+int player_in_comb(comb, char);
 void print_comb(comb);
 
 // combset functions
@@ -61,33 +57,56 @@ void destroy_combset_tree_childs(combset_tree *);
 void destroy_combset_tree_element(combset_tree *);
 
 // position functions
-void init_positions(int**);
+void init_positions(int**, int num);
 void destroy_positions(int*);
 
 // search functions
 int find_next_round_combset(combset *round, combset *worker, int *positions, int depth);
 int find_all_round_combsets(combset *worker, combset_tree *parent, int pos_limit);
-int find_all_subcombsets(combset_tree *parent, combset *allcombs, unsigned int *num_results);
+int find_all_subcombsets(combset_tree *parent, combset *allcombs, int *selected_startpos, int num_startpos, unsigned int *num_results);
 
 int autostop = 0;
+int N_PLAYERS = 0;
+int N_TABLES = 0;
+int N_PPT = 0;
 
 int main (int argc, const char * argv[]) {    
-    int selected_startpos;
+    int *selected_startpos = NULL;
+    int num_startpos = 0;
     unsigned int num_results = 0;
     
     combset *allcombs = NULL; // all combinations
     combset_tree *resulttree_root; // result tree
     
-    // start position
-    if (argc < 2) {
-        printf("Usage: %s <startpos> <autostop>\n", argv[0]);
+    // handle parameters
+    if (argc < 3) {
+        printf("Usage: %s <no_players> <no_tables> [autostop=0] [startpositions]\n", argv[0]);
         return 1;
     } else {
-        selected_startpos = atoi(argv[1]);
+        // N_PLAYERS
+        N_PLAYERS = atoi(argv[1]);
+        N_TABLES = atoi(argv[2]);
+        
+        if (N_PLAYERS % N_TABLES != 0) {
+            printf("Unable to arrage all players. All tables must have same amount of players.\n");
+            return 1;
+        }
+        N_PPT = N_PLAYERS / N_TABLES;
     }
     
-    if (argc == 3) {
-        autostop = atoi(argv[2]);
+    // save autostop
+    if (argc > 3) {
+        autostop = atoi(argv[3]);
+    }
+    
+    if (argc > 4) {
+        init_positions(&selected_startpos, argc-4);
+        int i;
+        // save all selected start positions
+        for (i = 0; i < argc-4; i++) {
+            selected_startpos[i] = atoi(argv[i+4]);
+            num_startpos++;
+        }
     }
     
     // init
@@ -98,20 +117,20 @@ int main (int argc, const char * argv[]) {
     build_all_comb(allcombs);
     
     // fill first level
-    find_all_round_combsets(allcombs, resulttree_root, selected_startpos);
+    if (num_startpos > 0) {
+        find_all_round_combsets(allcombs, resulttree_root, selected_startpos[0]);
+    } else {
+        find_all_round_combsets(allcombs, resulttree_root, -1);
+    }
     
-    // print selected startposition
-    printf("selected start combination:\n");
-    print_combset(resulttree_root->childs->round);
-    
-    find_all_subcombsets(resulttree_root, allcombs, &num_results);
+    find_all_subcombsets(resulttree_root, allcombs, selected_startpos, num_startpos, &num_results);
     
     printf("results total: %u\n", num_results);
     
     return 0;
 }
 
-int find_all_subcombsets(combset_tree *parent, combset *allcombs, unsigned int *num_results)
+int find_all_subcombsets(combset_tree *parent, combset *allcombs, int *selected_startpos, int num_startpos, unsigned int *num_results)
 {
     static int depth = 0;
     int count = 0;
@@ -139,14 +158,14 @@ int find_all_subcombsets(combset_tree *parent, combset *allcombs, unsigned int *
         if (reducedcombs == NULL) { init_combset(&reducedcombs); }
         
         // find all combsets
-        if (depth == 1) {
-            find_all_round_combsets(reducedcombs, runner, 0);
+        if (num_startpos > depth) {
+            find_all_round_combsets(reducedcombs, runner, selected_startpos[depth]);
         } else {
             find_all_round_combsets(reducedcombs, runner, -1);
         }
             
         // use found combsets to find subcombsets (recursive)
-        if (find_all_subcombsets(runner, reducedcombs, num_results) == 0 && count == 0) {
+        if (find_all_subcombsets(runner, reducedcombs, selected_startpos, num_startpos, num_results) == 0) {
             (*num_results)++;
             
             if (depth >= autostop) {
@@ -192,7 +211,7 @@ int find_all_round_combsets(combset *worker, combset_tree *parent, int pos_limit
     int counter = 0;
     
     // init
-    init_positions(&positions);
+    init_positions(&positions, N_TABLES);
     init_combset_tree(&temp);
     
     // find next combset and append to tree
@@ -200,18 +219,26 @@ int find_all_round_combsets(combset *worker, combset_tree *parent, int pos_limit
         // append only if position limitation is reached or deactivated
         if (pos_limit == -1 || counter == pos_limit) {
             append_combset_tree_child(parent, temp);
+            
+            // re-initialize temp
+            init_combset_tree(&temp);
+            
+            // break if position has reached 
+            if (counter == pos_limit) { break; }
         } else {
             destroy_combset_tree_element(temp);
+            
+            // re-initialize temp
+            init_combset_tree(&temp);
         }
         
-        // re-initialize temp
-        init_combset_tree(&temp);
+
         
         counter++;
     }
     
-    if (pos_limit >= counter) {
-        printf("pos_limit out of range\n");
+    if (pos_limit > counter) {
+        printf("selected position out of range\n");
     }
     
     // clean memory
@@ -334,6 +361,7 @@ void append_comb(combset *cs, comb c) {
     } else {
         // append
         combset *runner = cs;
+        // find end
         while (runner->next != NULL) { runner = runner->next; }
         combset *newcombset = NULL;
         init_combset(&newcombset);
@@ -531,12 +559,12 @@ void destroy_combset(combset *cs)
     cs = NULL;
 }
 
-void init_positions(int** pos)
+void init_positions(int** pos, int num)
 {
     int i;
-    *pos = (int *)malloc(N_TABLES * sizeof(int));
+    *pos = (int *)malloc(num * sizeof(int));
     
-    for (i = 0; i < N_TABLES; i++) {
+    for (i = 0; i < num; i++) {
         (*pos)[i] = 0;
     }
 }
